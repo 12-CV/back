@@ -7,10 +7,10 @@ import torch
 import onnxruntime as ort
 from time import time
 import argparse
+from utils.da_transform import load_image
 
 
-
-def inference(image, session) -> list:
+def inference_yw(image, session) -> list:
     height, width = image.shape[:2]
     if width != 640 and height == 640:
         raise Exception("이미지 크기를 640x640으로 맞춰주세요.")
@@ -34,10 +34,16 @@ def inference(image, session) -> list:
     for i, score in enumerate(scores):
         if additional_info[i] >= 0:
             if score > score_threshold[additional_info[i]]:
-                metadata.append(bbox[i].tolist())
+                metadata.append(bbox[i].tolist() + [int(additional_info[i])])
     
-    return {"bboxes": metadata}
+    return metadata
 
+def inference_da(image, session):
+    image, (orig_h, orig_w) = load_image(image)
+    depth = session.run(None, {"image": image})[0]
+    depth = cv2.resize(depth[0, 0], (orig_w, orig_h))
+
+    return depth
 
 async def on_receive_video(websocket: WebSocket):
     # WebSocket 연결 수락
@@ -46,8 +52,24 @@ async def on_receive_video(websocket: WebSocket):
     while True:
         data = await websocket.receive_bytes()
         image = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
+
+        bboxes = inference_yw(image, session_yw)
+        depth = inference_da(image, session_da)
+
+        metadata = []
+        for bbox in bboxes:
+            bbox_depth_region = depth[int(bbox[1]):int(bbox[3]), int(bbox[0]):int(bbox[2])]
+            if bbox_depth_region.size == 0:
+                continue
+
+            median_point = np.median(bbox_depth_region)
+            max_point = np.max(bbox_depth_region)                        
+            mean_point = np.mean(bbox_depth_region)      
+            middle_point = depth[int((bbox[1] + bbox[3]) / 2)][int((bbox[0] + bbox[2]) / 2)]
+            bbox += [float(median_point), float(max_point), float(mean_point), float(middle_point)]
+            metadata.append(bbox)
         
-        await websocket.send_json(inference(image, session))
+        await websocket.send_json({"bboxes": metadata})
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -55,8 +77,10 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     dummy_image = np.random.randint(0, 256, (640, 640, 3), dtype=np.uint8)
-    session = ort.InferenceSession('./models/yolow-l.onnx', providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
-    inference(dummy_image, session)
+    session_yw = ort.InferenceSession('./models/yolow-l.onnx', providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
+    session_da = ort.InferenceSession("./models/depth_anything_vits14.onnx", providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
+    inference_yw(dummy_image, session_yw)
+    inference_da(dummy_image, session_da)
     app = FastAPI()
     app.add_websocket_route("/ws", on_receive_video)
     import uvicorn

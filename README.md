@@ -1,3 +1,7 @@
+
+## Usage
+### installation
+
 1. 터미널에서 아래 명령어 실행
 ```
 apt-get install p7zip-full
@@ -6,12 +10,12 @@ apt-get install p7zip-full
 ```
 pip install -r requirements_server.txt
 ```
-3. 모델 압축 해제를 위해 models 하위에 있는 README 를 읽고 모델 압축 해제
+3. 모델 압축 해제를 위해 'models'폴더 하위에 있는 README 방법대로 모델 압축 해제
 
 4. 서버 실행
 ```
 python fastapi_server.py --port {포트번호}
 
-ex
+# example
 python fastapi_server.py --port 30303
 ```

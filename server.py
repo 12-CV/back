@@ -11,6 +11,8 @@ from matplotlib.patches import Circle
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
+from consts import *
+
 class MyMplCanvas(FigureCanvas):
     def __init__(self, parent=None, width=6.4, height=6.4, dpi=100):
         fig = Figure(figsize=(width, height), dpi=dpi)
@@ -65,7 +67,7 @@ def inference_yw(image, session) -> list:
     bbox = outputs[1][0]
     scores = outputs[2][0]
     additional_info = outputs[3][0]
-    score_threshold = [0.03, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.01]
+    score_threshold = CLASS_THRESHHOLD
 
     metadata = []
 
@@ -89,9 +91,6 @@ def update_figure(metadata, frame, canvas, blue_face:bool, draw_bbox:bool):
             x1, y1, x2, y2 = bbox[:4]
             x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
             class_id = bbox[4]
-            # median_point = bbox[5]
-            # max_point = bbox[6]                     
-            # mean_point = bbox[7] 
             middle_point = bbox[5]
             x = bbox[6]
             y = bbox[7]
@@ -163,9 +162,6 @@ async def on_receive_video(websocket: WebSocket):
             if bbox_depth_region.size == 0:
                 continue
 
-            # median_point = np.median(bbox_depth_region)
-            # max_point = np.max(bbox_depth_region)                        
-            # mean_point = np.mean(bbox_depth_region)      
             middle_point = depth[int((y1 + y2) / 2)][int((x1 + x2) / 2)]
             bbox += [float(middle_point)]
 
@@ -203,12 +199,15 @@ async def on_receive_video(websocket: WebSocket):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--port', type=int, default=30348, help='enter your available port number!')
+    parser.add_argument('--port', type=int, default=DEFAULT_PORT, help='enter your available port number!')
     args = parser.parse_args()
 
     dummy_image = np.random.randint(0, 256, (640, 640, 3), dtype=np.uint8)
-    session_yw = ort.InferenceSession('./models/yolow-l.onnx', providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
-    session_da = ort.InferenceSession("./models/depth_anything_vits14.onnx", providers=['CUDAExecutionProvider', 'CPUExecutionProvider'])
+    providers=['CUDAExecutionProvider', 'CPUExecutionProvider']
+
+    session_yw = ort.InferenceSession(YOLO_ONNX_PATH, providers=providers)
+    session_da = ort.InferenceSession(DA_ONNX_PATH, providers=providers)
+
     inference_yw(dummy_image, session_yw)
     inference_da(dummy_image, session_da)
     app = FastAPI()

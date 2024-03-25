@@ -1,5 +1,5 @@
-YOLO_ONNX_PATH = "./models/yolow-l.onnx"
-DA_ONNX_PATH = "./models/depth_anything_vits14.onnx"
+YOLO_ONNX_PATH = "./pretrained_weights/yolow-l.onnx"
+DA_ONNX_PATH = "./pretrained_weights/depth_anything_vits14.onnx"
 
 CLASS_THRESHHOLD = [0.03, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05, 0.01]
 

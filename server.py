@@ -47,8 +47,6 @@ class MyMplCanvas(FigureCanvas):
         x = 4 * np.cos(theta)
         y = 4 * np.sin(theta)
         self.axes.plot(x, y, color='white', linestyle='--', marker='', linewidth=0.7)
-        # self.axes.plot([-30, 0, 30], [20, 0, 20], color='white', linestyle='--', marker='', linewidth=0.7)
-
 
 def inference_yw(image, session) -> list:
     height, width = image.shape[:2]

@@ -23,8 +23,8 @@ class MyMplCanvas(FigureCanvas):
 
     def clear_axes(self):
         self.axes.clear()
-        self.axes.set_xlim(-10, 10)
-        self.axes.set_ylim(0, 20)
+        self.axes.set_xlim(-5, 5)
+        self.axes.set_ylim(0, 10)
         self.axes.set_facecolor('black')
 
         # 왼쪽과 오른쪽 spine 숨기기
@@ -34,15 +34,16 @@ class MyMplCanvas(FigureCanvas):
         self.axes.spines['right'].set_position('zero')  # 오른쪽 spine을 가운데로 이동
         # Y 축 눈금을 오른쪽에 표시
         self.axes.yaxis.tick_right()
+        self.axes.xaxis.set_ticks([])
 
         # 중점으로부터 5, 10 거리의 위험 반경 표시
         theta = np.linspace(0, 2*np.pi, 100)
-        x = 5 * np.cos(theta)
-        y = 5 * np.sin(theta)
+        x = 2 * np.cos(theta)
+        y = 2 * np.sin(theta)
         self.axes.plot(x, y, color='white', linestyle='--', marker='', linewidth=0.7)
 
-        x = 10 * np.cos(theta)
-        y = 10 * np.sin(theta)
+        x = 4 * np.cos(theta)
+        y = 4 * np.sin(theta)
         self.axes.plot(x, y, color='white', linestyle='--', marker='', linewidth=0.7)
         # self.axes.plot([-30, 0, 30], [20, 0, 20], color='white', linestyle='--', marker='', linewidth=0.7)
 
@@ -88,22 +89,22 @@ def update_figure(metadata, frame, canvas, blue_face:bool, draw_bbox:bool):
             x1, y1, x2, y2 = bbox[:4]
             x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
             class_id = bbox[4]
-            median_point = bbox[5]
-            max_point = bbox[6]                     
-            mean_point = bbox[7] 
-            middle_point = bbox[8]
-            x = bbox[9]
-            y = bbox[10]
-            rad = bbox[11]
-            distance = bbox[12]
+            # median_point = bbox[5]
+            # max_point = bbox[6]                     
+            # mean_point = bbox[7] 
+            middle_point = bbox[5]
+            x = bbox[6]
+            y = bbox[7]
+            rad = bbox[8]
+            distance = bbox[9]
 
             if class_id != 9:
-                if distance < 5:
+                if distance < 2:
                     stat = 'Danger'
                     color = (0, 0, 255)
                     color_str = "red"
 
-                elif distance < 10:
+                elif distance < 4:
                     stat = 'Warning'
                     color = (0, 165, 255)
                     color_str = "orange"
@@ -116,8 +117,8 @@ def update_figure(metadata, frame, canvas, blue_face:bool, draw_bbox:bool):
                 circle = Circle(xy=(x, y), radius=rad, edgecolor=color_str, facecolor=color_str)
                 canvas.axes.add_patch(circle)
 
-                # 거리 20 이내의 객체만 Bbox를 그려준다.
-                if distance < 20 and draw_bbox:
+                # 거리 8 이내의 객체만 Bbox를 그려준다.
+                if distance < 8 and draw_bbox:
                     cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
                     cv2.putText(frame, stat, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
@@ -156,42 +157,30 @@ async def on_receive_video(websocket: WebSocket):
         metadata = []
         beep = False
         for bbox in bboxes:
-            bbox_depth_region = depth[int(bbox[1]):int(bbox[3]), int(bbox[0]):int(bbox[2])]
+            x1, y1, x2, y2 = bbox[:4]
+
+            bbox_depth_region = depth[int(y1):int(y2), int(x1):int(x2)]
             if bbox_depth_region.size == 0:
                 continue
 
-            median_point = np.median(bbox_depth_region)
-            max_point = np.max(bbox_depth_region)                        
-            mean_point = np.mean(bbox_depth_region)      
-            middle_point = depth[int((bbox[1] + bbox[3]) / 2)][int((bbox[0] + bbox[2]) / 2)]
-            bbox += [float(median_point), float(max_point), float(mean_point), float(middle_point)]
+            # median_point = np.median(bbox_depth_region)
+            # max_point = np.max(bbox_depth_region)                        
+            # mean_point = np.mean(bbox_depth_region)      
+            middle_point = depth[int((y1 + y2) / 2)][int((x1 + x2) / 2)]
+            bbox += [float(middle_point)]
 
-            # 클라이언트 렌더링을 서버에서 하도록 설정
-            x1, y1, x2, y2 = bbox[:4]
-            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
-
-            corr = 15
-
-            # 객체 x축의 중간값을 각도로 수정 (-45 ~ 45도)
-            r = ((x1 + x2) / 2 - 320) * (45 / 320)
-            r = math.radians(r)
-
-            # median 값을 실제 거리로 근사
-            median_depth = 21 - (median_point * 4 / 3) + corr
+            # 실제 거리로 근사
+            y = 0.01875 * middle_point ** 2 -0.83062 * middle_point + 10.28521
             
-            # depth와 각도에 따른 x, y값
-            x = median_depth * math.sin(r)
-            y = median_depth * math.cos(r) - corr
+            # y 비례 x값 보정
+            x = (x1 + x2 - 640) / 1280 * (y + 3.3) 
 
-            # x축 너비의 따른 원 크기 조절
-            rad = (x2 - x1) / 160
+            # y 비례 객체 반지름 고정
+            rad = (x2 - x1) / 1280 * (y + 2.7)
 
             distance = (x ** 2 + y ** 2) ** 0.5 - rad
-            if distance < 5 and collision_warning:
+            if distance < 2 and collision_warning:
                 beep = True
-
-            if y < 0 and distance < 10:
-                y = -np.log(-y + 1) + 0.7
 
             bbox.extend([x, y, rad, distance])
             

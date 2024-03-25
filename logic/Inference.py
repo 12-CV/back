@@ -4,7 +4,7 @@ import numpy as np
 import onnxruntime as ort
 
 from consts import *
-from utils.da_transform import load_image
+from logic.Transform import load_image
 
 session_yw = None
 session_da = None

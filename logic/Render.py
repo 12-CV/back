@@ -55,7 +55,7 @@ def render(metadata, frame, canvas:CustomCanvas):
         blur_face = bbox[10]
         draw_bbox = bbox[11]
 
-        if class_id != 9:
+        if class_id != 1:
             if distance < 2:
                 stat = 'Danger'
                 color = (0, 0, 255)

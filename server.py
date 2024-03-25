@@ -3,7 +3,7 @@ import argparse
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
 
-from consts import DEFAULT_PORT
+from config import DEFAULT_PORT
 from logic.SocketHandler import on_receive_video
 from logic.Inference import init_onnx_sessions
 

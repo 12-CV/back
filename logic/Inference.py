@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import onnxruntime as ort
 
-from consts import *
+from config import *
 from logic.Transform import load_image
 
 session_yw = None
